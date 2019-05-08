@@ -1,0 +1,89 @@
+pragma solidity >=0.4.22 <0.6.0;
+
+contract TaxGovernance {
+    
+     mapping (string => address) Companies;
+     mapping (address => uint) companyBalance;
+     mapping (address => string) CompanyByAddress;
+     string public name;
+     string public symbol;
+     
+    struct VATPayable {
+        string company;
+        uint amountOwed;
+        
+    }
+    
+    //Array for storing companies and their payable VAT
+    VATPayable[] public payables;
+    
+    
+    //Constructor 
+    constructor() public{
+        name = "Danish VAT Smart Contract";
+        symbol = "DK_VAT";
+    }
+    
+    //A company can call this function on our contract and be created on the blockchain
+    function createCompany(string _name) public returns(bool) {
+        if(Companies[_name] == address(0)) {
+            Companies[_name] = msg.sender;
+            return true;
+        } else {
+            return false;
+        }
+        //companies.push(Company(_name, _type));
+    }
+    
+    //Takes test-ether from REMIX and loads it into the contract 
+    function loadBalance(string _name) public payable returns(bool) {
+        require( Companies[_name] != address(0));
+        require(Companies[_name] == msg.sender);
+        //Load balance from msg.value
+        companyBalance[Companies[_name]] += msg.value;
+
+    }
+    
+    //View function as it doesn't manipulate anything
+    function viewCompanyBalance(string _name) public view returns(uint) {
+        //Private information, only the company itself can view its balance
+        require(Companies[_name] == msg.sender);
+        return companyBalance[Companies[_name]];
+    }
+    
+    function transact(string _name, uint _amount) public payable returns(string) {
+        //Require that the receiver exists
+        require(Companies[_name] != address(0));
+        //Transfer  ether to receiver
+        companyBalance[Companies[_name]] += _amount;
+        Companies[_name].transfer(_amount);
+        
+        //Deduct ether from sender
+        companyBalance[msg.sender] -= _amount;
+        
+        //Add calculated VAT to array for later payment by the seller
+        payables.push(VATPayable(_name, calculateVAT(_amount)));
+        return "transaction settled and VAT calculated!";
+    }
+    
+    //Calculates VAT (10% because Solidity can't interpret floating point)
+    function calculateVAT(uint _amount) private pure returns(uint) {
+        return _amount * 1/10;
+    }
+    
+    function collectVAT() public returns(bool) {
+        //iterate through array
+        for(uint i = 0; i < payables.length; i++) {
+            //Deduct from company owing VAT
+            companyBalance[Companies[payables[i].company]] -= payables[i].amountOwed;
+            //Transfer to Skattestyrelsen
+            companyBalance[Companies["SKAT"]] += payables[i].amountOwed;
+        }
+        
+        //Once loop is over, all VAT has been transferred and the array can be cleared
+        delete payables; 
+    }
+    
+    
+    
+}
