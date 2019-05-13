@@ -1,0 +1,41 @@
+pragma solidity >=0.4.22 <0.6.0;
+
+contract TaxGovernance {
+    
+    
+    // mapping (uint => address) VATPayable;
+     mapping (string => address) Companies;
+     mapping (address => uint) companyBalance;
+     string public name;
+     string public symbol;
+    
+    //A company can call this function on our contract and be created on the blockchain
+    function createCompany(string _name) public returns(bool) {
+        if(Companies[_name] == address(0)) {
+            Companies[_name] = msg.sender;
+            return true;
+        } else {
+            return false;
+        }
+        //companies.push(Company(_name, _type));
+    }
+    
+    function transact(string _name) public payable returns(string) {
+        //Require that the receiver exists
+       // require( Companies[_name] != address(0));
+        //Transfer the ether
+        companyBalance[Companies[_name]] += msg.value;
+        Companies[_name].transfer(msg.value);
+
+        companyBalance[Companies["SKAT"]] += msg.value;
+        Companies["SKAT"].transfer(_calculateTax(msg.value));
+        return "transaction settled and VAT paid!";
+    }
+    
+    //Pure function (doesn't read off bchain) that calculates tax 
+    function _calculateTax(uint _amount) private pure returns(uint) {
+        return _amount * 1/4;
+    }
+    
+    
+}
